@@ -12,9 +12,11 @@ import { useToast } from 'shared-lib';
 import { ConfirmDialog } from 'shared-lib';
 import type { Contact } from 'shared-lib';
 import { useTranslation } from 'react-i18next';
+import {useModuleLifecycle} from "../useModuleLifecycle.ts";
 
 export default function ContactsPage() {
     const { t } = useTranslation();
+    const { emit } = useModuleLifecycle('contacts');
     const [contacts, setContacts] = useState(mockContacts);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
@@ -129,6 +131,15 @@ export default function ContactsPage() {
         };
 
         setContacts([...contacts, contact]);
+
+        // 🔥 Emit event for other MFEs (Dashboard, etc.)
+        emit('contact:added', {
+            id: contact.id,
+            name: contact.name,
+            email: contact.email,
+            timestamp: Date.now(),
+        });
+
         setNewContact({ name: '', email: '', phone: '', tags: '' });
         setAddDialogOpen(false);
 
@@ -145,6 +156,16 @@ export default function ContactsPage() {
             title: 'Success',
             description: `${selectedContact.name} has been updated`,
         });
+
+        // 🔥 Emit event for update
+        emit('contact:updated', {
+            id: selectedContact.id,
+            name: selectedContact.name,
+            email: selectedContact.email,
+            timestamp: Date.now(),
+        });
+
+
         setEditDialogOpen(false);
     };
 
@@ -164,12 +185,23 @@ export default function ContactsPage() {
 
     const confirmDelete = () => {
         setContacts(contacts.filter(c => !selectedIds.includes(c.id)));
+
         toast({
             title: t('common.deleted'),
             description: t('contacts.contactsDeleted', { count: selectedIds.length }),
         });
+
+        // 🔥 Emit event for delete
+        selectedIds.forEach((id) => {
+            emit('contact:deleted', {
+                id,
+                timestamp: Date.now(),
+            });
+        });
+
         setSelectedIds([]);
         setDeleteDialogOpen(false);
+
     };
 
     return (
